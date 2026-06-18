@@ -25,9 +25,9 @@ type ChatMessage struct {
 }
 
 type UserStatus struct {
-	UserID   string `json:"user_id"`
-	Status   string `json:"status"` // "online", "offline", "away"
-	Timestamp int64 `json:"timestamp"`
+	UserID    string `json:"user_id"`
+	Status    string `json:"status"` // "online", "offline", "away"
+	Timestamp int64  `json:"timestamp"`
 }
 
 type RPCRequest struct {
@@ -55,8 +55,8 @@ func main() {
 		PingInterval:      15 * time.Second,
 		WriteTimeout:      5 * time.Second,
 		ReadTimeout:       30 * time.Second,
-		MaxMessageSize:    1024 * 1024, // 1MB
-		EnableCompression: false,        // Disable for better performance
+		MaxMessageSize:    1024 * 1024,   // 1MB
+		EnableCompression: false,         // Disable for better performance
 		AllowedOrigins:    []string{"*"}, // Configure appropriately for production
 	}
 

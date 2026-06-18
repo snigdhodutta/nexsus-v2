@@ -36,7 +36,7 @@ func NewRawCodec() *RawCodec {
 const (
 	// DefaultWriteTimeout is the default timeout for write operations
 	DefaultWriteTimeout = 5 * time.Second
-	// DefaultReadTimeout is the default timeout for read operations  
+	// DefaultReadTimeout is the default timeout for read operations
 	DefaultReadTimeout = 30 * time.Second
 	// DefaultPingInterval is the default interval for application-level pings
 	DefaultPingInterval = 15 * time.Second
@@ -131,7 +131,7 @@ func (cm *ConnectionManager) Accept(w http.ResponseWriter, r *http.Request, opts
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	wsConn := &wsConn{
+	connection := &wsConn{
 		id:         connID,
 		conn:       conn,
 		remoteAddr: remoteAddr,
@@ -141,14 +141,14 @@ func (cm *ConnectionManager) Accept(w http.ResponseWriter, r *http.Request, opts
 	}
 
 	// Store connection
-	cm.conns.Store(connID, wsConn)
+	cm.conns.Store(connID, connection)
 	cm.connCount.Add(1)
 
 	// Start background tasks
-	go wsConn.handlePings(cm.pingInterval)
-	go wsConn.handleReads(cm)
+	go connection.handlePings(cm.pingInterval)
+	go connection.handleReads(cm)
 
-	return wsConn, nil
+	return connection, nil
 }
 
 // Get retrieves a connection by ID.
@@ -178,8 +178,8 @@ func (cm *ConnectionManager) Broadcast(ctx context.Context, subject string, msg 
 	var firstErrMu sync.Mutex
 
 	cm.conns.Range(func(key, value any) bool {
-		connVal := value.(*wsConn)
-		if connVal.IsClosed() {
+		conn := value.(*wsConn)
+		if conn.IsClosed() {
 			return true
 		}
 
@@ -193,7 +193,7 @@ func (cm *ConnectionManager) Broadcast(ctx context.Context, subject string, msg 
 				}
 				firstErrMu.Unlock()
 			}
-		}(connVal)
+		}(conn)
 
 		return true
 	})
@@ -273,7 +273,7 @@ func (c *wsConn) Close(code uint16, reason string) error {
 	}
 
 	c.cancelFn()
-	
+
 	// Close channel safely (only once)
 	select {
 	case <-c.closeCh:
@@ -295,9 +295,9 @@ func (c *wsConn) closeWithError(code websocket.StatusCode, reason string) {
 	if c.closed.Swap(true) {
 		return // Already closed
 	}
-	
+
 	c.cancelFn()
-	
+
 	// Close channel safely (only once)
 	select {
 	case <-c.closeCh:
@@ -305,7 +305,7 @@ func (c *wsConn) closeWithError(code websocket.StatusCode, reason string) {
 	default:
 		close(c.closeCh)
 	}
-	
+
 	_ = c.conn.Close(code, reason)
 }
 
@@ -356,7 +356,7 @@ func (c *wsConn) handleReads(cm *ConnectionManager) {
 
 		// Set read deadline
 		readCtx, cancel := context.WithTimeout(c.ctx, cm.readTimeout)
-		
+
 		msgType, reader, err := c.conn.Reader(readCtx)
 		cancel()
 
