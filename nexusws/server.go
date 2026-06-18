@@ -170,7 +170,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.logger.Println("shutting down NexusWS server")
 
 	// Close all connections
-	s.connMgr.CloseAll(ctx, websocket.StatusNormalClosure, "server shutdown")
+	s.connMgr.CloseAll(ctx, uint16(1000), "server shutdown")
 
 	// Shutdown HTTP server
 	if err := s.httpServer.Shutdown(ctx); err != nil {

@@ -14,6 +14,23 @@ import (
 	"github.com/snigdhodutta/nexsus-v2/nexusws/pkg"
 )
 
+// Type aliases for codec types
+type FrameEncoder = codec.FrameEncoder
+type FrameDecoder = codec.FrameDecoder
+type RawCodec = codec.RawCodec
+
+func NewFrameEncoder() *FrameEncoder {
+	return codec.NewFrameEncoder()
+}
+
+func NewFrameDecoder() *FrameDecoder {
+	return codec.NewFrameDecoder()
+}
+
+func NewRawCodec() *RawCodec {
+	return codec.NewRawCodec()
+}
+
 const (
 	// DefaultNATSTimeout is the default timeout for NATS operations
 	DefaultNATSTimeout = 10 * time.Second
@@ -42,7 +59,7 @@ type NATSBridge struct {
 // NewNATSBridge creates a new NATS bridge.
 func NewNATSBridge(url string, codec nexusws.Codec) (*NATSBridge, error) {
 	if codec == nil {
-		codec = codec.NewRawCodec()
+		codec = NewRawCodec()
 	}
 
 	nc, err := nats.Connect(url,
@@ -60,8 +77,8 @@ func NewNATSBridge(url string, codec nexusws.Codec) (*NATSBridge, error) {
 	bridge := &NATSBridge{
 		conn:        nc,
 		codec:       codec,
-		encoder:     codec.NewFrameEncoder(),
-		decoder:     codec.NewFrameDecoder(),
+		encoder:     NewFrameEncoder(),
+		decoder:     NewFrameDecoder(),
 		replyPrefix: ReplyPrefix,
 		ctx:         ctx,
 		cancelFn:    cancel,
@@ -111,7 +128,9 @@ func (b *NATSBridge) PublishWithReply(ctx context.Context, subject string, msg *
 	b.requestMap.Store(correlationID, responseCh)
 
 	// Subscribe to reply subject
-	sub, err := b.conn.Subscribe(replySubject, func(m *nats.Msg) {
+	var sub *nats.Subscription
+	var err error
+	sub, err = b.conn.Subscribe(replySubject, func(m *nats.Msg) {
 		// Decode response
 		respMsg, _, err := b.decoder.Decode(m.Data)
 		if err != nil {
@@ -141,7 +160,7 @@ func (b *NATSBridge) PublishWithReply(ctx context.Context, subject string, msg *
 
 	// Publish request
 	if err := b.Publish(ctx, subject, msg); err != nil {
-		sub.Unsubscribe()
+		_ = sub.Unsubscribe()
 		b.requestMap.Delete(correlationID)
 		close(responseCh)
 		return nil, err
