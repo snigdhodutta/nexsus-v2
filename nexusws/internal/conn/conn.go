@@ -326,7 +326,7 @@ func (c *wsConn) handleReads(cm *ConnectionManager) {
 		if cm.onClose != nil {
 			cm.onClose(c)
 		}
-		c.Close(websocket.StatusNormalClosure, "normal closure")
+		// Don't call Close here again - closeWithError already handles it
 	}()
 
 	for {
@@ -342,6 +342,7 @@ func (c *wsConn) handleReads(cm *ConnectionManager) {
 
 		if err != nil {
 			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+				c.closeWithError(websocket.StatusNormalClosure, "normal closure")
 				return
 			}
 			c.closeWithError(websocket.StatusInternalError, "read failed")
