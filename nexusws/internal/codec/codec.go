@@ -4,6 +4,8 @@ package codec
 import (
 	"encoding/binary"
 	"fmt"
+
+	"github.com/snigdhodutta/nexsus-v2/nexusws/pkg"
 )
 
 // RawCodec is a zero-copy codec that treats payloads as raw bytes.
@@ -170,7 +172,6 @@ func (d *FrameDecoder) Decode(data []byte) (*nexusws.Message, int, error) {
 		CorrelationID: correlationID,
 		Payload:       payload,
 		Reply:         reply,
-		Timestamp:     0, // Set by caller if needed
 	}
 
 	return msg, idx, nil

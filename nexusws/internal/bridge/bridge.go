@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/codec"
+	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/pool"
+	"github.com/snigdhodutta/nexsus-v2/nexusws/pkg"
 )
 
 const (

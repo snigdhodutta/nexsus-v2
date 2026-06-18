@@ -109,9 +109,6 @@ type ServerConfig struct {
 type Server struct {
 	config     ServerConfig
 	router     Router
-	bridge     *NATSBridge
-	connMgr    *ConnectionManager
-	httpServer *httpServerWrapper
 	shutdownCh chan struct{}
 }
 

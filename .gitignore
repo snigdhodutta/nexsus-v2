@@ -2,33 +2,53 @@
 # Go-specific ignores
 *.o
 *.a
+*.so
+*.dylib
+*.dll
+*.exe
 *.out
 *.test
 *.prof
-*.exe
-*.dll
-*.so
-*.dylib
+*.syso
 
-# Go build artifacts
+# Go build/cache directories
 bin/
 pkg/
-
-# Dependency management
+*.mod
+*.sum
 vendor/
 
-# IDE/Editor
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+target/
+.gradle/
 
-# Logs
+# Build artifacts
+build/
+dist/
+coverage/
+htmlcov/
+.nyc_output/
 *.log
+*.tmp
 
 # Environment
 .env
 .env.local
-*.env.*
+.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System
+.DS_Store
+Thumbs.db
 ```

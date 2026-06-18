@@ -39,10 +39,7 @@ func GetBuffer() *bytes.Buffer {
 // PutBuffer returns a buffer to the pool.
 func PutBuffer(buf *bytes.Buffer) {
 	buf.Reset()
-	// Only put back if pool isn't saturated
-	if BufferPool.Len() < MaxPoolSize {
-		BufferPool.Put(buf)
-	}
+	BufferPool.Put(buf)
 }
 
 // GetByteSlice retrieves a byte slice from the pool.
@@ -54,10 +51,7 @@ func GetByteSlice() *[]byte {
 // PutByteSlice returns a byte slice to the pool.
 func PutByteSlice(slice *[]byte) {
 	*slice = (*slice)[:0] // Reset length but keep capacity
-	// Only put back if pool isn't saturated
-	if ByteSlicePool.Len() < MaxPoolSize {
-		ByteSlicePool.Put(slice)
-	}
+	ByteSlicePool.Put(slice)
 }
 
 // FramePool manages pre-allocated frame structures for encoding/decoding.
