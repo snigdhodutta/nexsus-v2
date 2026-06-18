@@ -12,7 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/snigdhodutta/nexsus-v2/nexusws"
+	nexusws "github.com/snigdhodutta/nexsus-v2/nexusws/pkg"
+	serverPkg "github.com/snigdhodutta/nexsus-v2/nexusws"
 )
 
 // Example message types for our chat application.
@@ -60,7 +61,7 @@ func main() {
 	}
 
 	// Create server
-	server, err := nexusws.NewServer(cfg)
+	server, err := serverPkg.NewServer(cfg)
 	if err != nil {
 		logger.Printf("failed to create server: %v", err)
 		os.Exit(1)

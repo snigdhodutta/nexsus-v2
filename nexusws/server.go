@@ -18,6 +18,7 @@ import (
 	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/codec"
 	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/conn"
 	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/router"
+	nexusws "github.com/snigdhodutta/nexsus-v2/nexusws/pkg"
 )
 
 const (
@@ -52,7 +53,7 @@ func (h *httpServerWrapper) Shutdown(ctx context.Context) error {
 
 // Server is the main NexusWS server instance.
 type Server struct {
-	config     ServerConfig
+	config     nexusws.ServerConfig
 	router     *router.RouterImpl
 	bridge     *bridge.NATSBridge
 	connMgr    *conn.ConnectionManager
@@ -65,7 +66,7 @@ type Server struct {
 }
 
 // NewServer creates a new NexusWS server with the given configuration.
-func NewServer(cfg ServerConfig) (*Server, error) {
+func NewServer(cfg nexusws.ServerConfig) (*Server, error) {
 	// Set defaults
 	if cfg.Codec == nil {
 		cfg.Codec = codec.NewRawCodec()
@@ -199,7 +200,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 // Router returns the server's router for registering handlers.
-func (s *Server) Router() Router {
+func (s *Server) Router() nexusws.Router {
 	return s.router
 }
 
@@ -210,8 +211,8 @@ func (s *Server) Publish(ctx context.Context, subject string, data any) error {
 		return fmt.Errorf("failed to encode data: %w", err)
 	}
 
-	msg := &Message{
-		Type:      FrameTypeEvent,
+	msg := &nexusws.Message{
+		Type:      nexusws.FrameTypeEvent,
 		Subject:   subject,
 		Payload:   payload,
 		Timestamp: time.Now(),
@@ -260,8 +261,8 @@ func (s *Server) handleWebSocketUpgrade(w http.ResponseWriter, r *http.Request) 
 	}
 
 	opts := &websocket.AcceptOptions{
-		Subprotocols:   []string{"nexusws.binary"},
-		OriginPatterns: s.config.AllowedOrigins,
+		Subprotocols:    []string{"nexusws.binary"},
+		OriginPatterns:  s.config.AllowedOrigins,
 		CompressionMode: websocket.CompressionDisabled, // Disable for performance
 	}
 
@@ -269,25 +270,26 @@ func (s *Server) handleWebSocketUpgrade(w http.ResponseWriter, r *http.Request) 
 		opts.CompressionMode = websocket.CompressionContextTakeover
 	}
 
-	_, err := s.connMgr.Accept(w, r, opts)
+	c, err := s.connMgr.Accept(w, r, opts)
 	if err != nil {
-		s.logger.Error("WebSocket accept error", "error", err)
+		s.logger.Printf("WebSocket accept error: %v", err)
 		return
 	}
 
-	s.logger.Debug("WebSocket connection accepted", "remote", r.RemoteAddr)
+	s.logger.Printf("WebSocket connection accepted from %s", r.RemoteAddr)
+	_ = c // Connection is now managed by ConnectionManager
 }
 
 // handleWebSocketMessage handles incoming WebSocket messages.
-func (s *Server) handleWebSocketMessage(ctx context.Context, c Connection, msg *Message) error {
+func (s *Server) handleWebSocketMessage(ctx context.Context, c nexusws.Connection, msg *nexusws.Message) error {
 	// Route locally first
 	if err := s.router.Route(ctx, c, msg); err != nil {
-		s.logger.Warn("local routing error", "error", err)
+		s.logger.Printf("local routing error: %v", err)
 	}
 
 	// Bridge to NATS
 	if err := s.bridge.HandleIncomingMessage(ctx, msg); err != nil {
-		s.logger.Warn("NATS bridge error", "error", err)
+		s.logger.Printf("NATS bridge error: %v", err)
 		return err
 	}
 
@@ -295,14 +297,14 @@ func (s *Server) handleWebSocketMessage(ctx context.Context, c Connection, msg *
 }
 
 // handleNATSMessage handles messages from NATS.
-func (s *Server) handleNATSMessage(ctx context.Context, msg *Message) error {
+func (s *Server) handleNATSMessage(ctx context.Context, msg *nexusws.Message) error {
 	// Broadcast to all connected clients
 	return s.connMgr.Broadcast(ctx, msg.Subject, msg)
 }
 
 // handleConnectionClose handles connection close events.
-func (s *Server) handleConnectionClose(c Connection) {
-	s.logger.Debug("connection closed", "id", c.ID(), "remote", c.RemoteAddr())
+func (s *Server) handleConnectionClose(c nexusws.Connection) {
+	s.logger.Printf("connection closed: id=%s remote=%s", c.ID(), c.RemoteAddr())
 }
 
 // ConnManager returns the connection manager (for advanced use cases).
