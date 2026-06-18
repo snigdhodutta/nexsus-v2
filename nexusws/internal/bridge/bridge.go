@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/codec"
+	codecpkg "github.com/snigdhodutta/nexsus-v2/nexusws/internal/codec"
 	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/pool"
-	"github.com/snigdhodutta/nexsus-v2/nexusws/pkg"
+	nexusws "github.com/snigdhodutta/nexsus-v2/nexusws/pkg"
 )
 
 const (
@@ -27,8 +27,8 @@ const (
 type NATSBridge struct {
 	conn           *nats.Conn
 	codec          nexusws.Codec
-	encoder        *codec.FrameEncoder
-	decoder        *codec.FrameDecoder
+	encoder        *codecpkg.FrameEncoder
+	decoder        *codecpkg.FrameDecoder
 	subscriptions  sync.Map // map[string]*nats.Subscription
 	requestMap     sync.Map // map[uint64]chan *nexusws.Message
 	correlationSeq atomic.Uint64
@@ -40,9 +40,9 @@ type NATSBridge struct {
 }
 
 // NewNATSBridge creates a new NATS bridge.
-func NewNATSBridge(url string, codec nexusws.Codec) (*NATSBridge, error) {
-	if codec == nil {
-		codec = codec.NewRawCodec()
+func NewNATSBridge(url string, c nexusws.Codec) (*NATSBridge, error) {
+	if c == nil {
+		c = codecpkg.NewRawCodec()
 	}
 
 	nc, err := nats.Connect(url,
@@ -59,9 +59,9 @@ func NewNATSBridge(url string, codec nexusws.Codec) (*NATSBridge, error) {
 
 	bridge := &NATSBridge{
 		conn:        nc,
-		codec:       codec,
-		encoder:     codec.NewFrameEncoder(),
-		decoder:     codec.NewFrameDecoder(),
+		codec:       c,
+		encoder:     codecpkg.NewFrameEncoder(),
+		decoder:     codecpkg.NewFrameDecoder(),
 		replyPrefix: ReplyPrefix,
 		ctx:         ctx,
 		cancelFn:    cancel,
@@ -131,7 +131,6 @@ func (b *NATSBridge) PublishWithReply(ctx context.Context, subject string, msg *
 		// Cleanup
 		close(responseCh)
 		b.requestMap.Delete(correlationID)
-		_ = sub.Unsubscribe()
 	})
 	if err != nil {
 		b.requestMap.Delete(correlationID)
@@ -139,9 +138,13 @@ func (b *NATSBridge) PublishWithReply(ctx context.Context, subject string, msg *
 		return nil, fmt.Errorf("failed to subscribe to reply subject: %w", err)
 	}
 
+	// Unsubscribe after response is received (handled in defer)
+	defer func() {
+		_ = sub.Unsubscribe()
+	}()
+
 	// Publish request
 	if err := b.Publish(ctx, subject, msg); err != nil {
-		sub.Unsubscribe()
 		b.requestMap.Delete(correlationID)
 		close(responseCh)
 		return nil, err
@@ -254,7 +257,7 @@ func (b *NATSBridge) HandleIncomingMessage(ctx context.Context, msg *nexusws.Mes
 			// Process locally
 			go func() {
 				defer close(responseCh)
-				
+
 				respMsg := &nexusws.Message{
 					Type:          nexusws.FrameTypeActionResponse,
 					Subject:       msg.Subject,

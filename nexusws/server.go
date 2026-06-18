@@ -18,11 +18,14 @@ import (
 	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/codec"
 	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/conn"
 	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/router"
+	pkg "github.com/snigdhodutta/nexsus-v2/nexusws/pkg"
 )
 
 const (
 	// Version is the current version of NexusWS
 	Version = "0.1.0"
+	// DefaultRequestTimeout is the default timeout for request-reply operations.
+	DefaultRequestTimeout = 30 * time.Second
 )
 
 // httpServerWrapper wraps an http.Server for graceful shutdown.
@@ -52,7 +55,7 @@ func (h *httpServerWrapper) Shutdown(ctx context.Context) error {
 
 // Server is the main NexusWS server instance.
 type Server struct {
-	config     ServerConfig
+	config     pkg.ServerConfig
 	router     *router.RouterImpl
 	bridge     *bridge.NATSBridge
 	connMgr    *conn.ConnectionManager
@@ -65,7 +68,7 @@ type Server struct {
 }
 
 // NewServer creates a new NexusWS server with the given configuration.
-func NewServer(cfg ServerConfig) (*Server, error) {
+func NewServer(cfg pkg.ServerConfig) (*Server, error) {
 	// Set defaults
 	if cfg.Codec == nil {
 		cfg.Codec = codec.NewRawCodec()
@@ -170,7 +173,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.logger.Println("shutting down NexusWS server")
 
 	// Close all connections
-	s.connMgr.CloseAll(ctx, websocket.StatusNormalClosure, "server shutdown")
+	s.connMgr.CloseAll(ctx, uint16(websocket.StatusNormalClosure), "server shutdown")
 
 	// Shutdown HTTP server
 	if err := s.httpServer.Shutdown(ctx); err != nil {
@@ -199,7 +202,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 // Router returns the server's router for registering handlers.
-func (s *Server) Router() Router {
+func (s *Server) Router() pkg.Router {
 	return s.router
 }
 
@@ -210,8 +213,8 @@ func (s *Server) Publish(ctx context.Context, subject string, data any) error {
 		return fmt.Errorf("failed to encode data: %w", err)
 	}
 
-	msg := &Message{
-		Type:      FrameTypeEvent,
+	msg := &pkg.Message{
+		Type:      pkg.FrameTypeEvent,
 		Subject:   subject,
 		Payload:   payload,
 		Timestamp: time.Now(),
@@ -260,8 +263,8 @@ func (s *Server) handleWebSocketUpgrade(w http.ResponseWriter, r *http.Request) 
 	}
 
 	opts := &websocket.AcceptOptions{
-		Subprotocols:   []string{"nexusws.binary"},
-		OriginPatterns: s.config.AllowedOrigins,
+		Subprotocols:    []string{"nexusws.binary"},
+		OriginPatterns:  s.config.AllowedOrigins,
 		CompressionMode: websocket.CompressionDisabled, // Disable for performance
 	}
 
@@ -271,23 +274,23 @@ func (s *Server) handleWebSocketUpgrade(w http.ResponseWriter, r *http.Request) 
 
 	_, err := s.connMgr.Accept(w, r, opts)
 	if err != nil {
-		s.logger.Error("WebSocket accept error", "error", err)
+		s.logger.Printf("WebSocket accept error: %v", err)
 		return
 	}
 
-	s.logger.Debug("WebSocket connection accepted", "remote", r.RemoteAddr)
+	s.logger.Printf("WebSocket connection accepted from %s", r.RemoteAddr)
 }
 
 // handleWebSocketMessage handles incoming WebSocket messages.
-func (s *Server) handleWebSocketMessage(ctx context.Context, c Connection, msg *Message) error {
+func (s *Server) handleWebSocketMessage(ctx context.Context, c pkg.Connection, msg *pkg.Message) error {
 	// Route locally first
 	if err := s.router.Route(ctx, c, msg); err != nil {
-		s.logger.Warn("local routing error", "error", err)
+		s.logger.Printf("local routing error: %v", err)
 	}
 
 	// Bridge to NATS
 	if err := s.bridge.HandleIncomingMessage(ctx, msg); err != nil {
-		s.logger.Warn("NATS bridge error", "error", err)
+		s.logger.Printf("NATS bridge error: %v", err)
 		return err
 	}
 
@@ -295,14 +298,14 @@ func (s *Server) handleWebSocketMessage(ctx context.Context, c Connection, msg *
 }
 
 // handleNATSMessage handles messages from NATS.
-func (s *Server) handleNATSMessage(ctx context.Context, msg *Message) error {
+func (s *Server) handleNATSMessage(ctx context.Context, msg *pkg.Message) error {
 	// Broadcast to all connected clients
 	return s.connMgr.Broadcast(ctx, msg.Subject, msg)
 }
 
 // handleConnectionClose handles connection close events.
-func (s *Server) handleConnectionClose(c Connection) {
-	s.logger.Debug("connection closed", "id", c.ID(), "remote", c.RemoteAddr())
+func (s *Server) handleConnectionClose(c pkg.Connection) {
+	s.logger.Printf("connection closed: id=%s remote=%s", c.ID(), c.RemoteAddr())
 }
 
 // ConnManager returns the connection manager (for advanced use cases).
@@ -324,6 +327,3 @@ func (s *Server) Logger() *log.Logger {
 func (s *Server) ConnectionCount() int64 {
 	return s.connMgr.Count()
 }
-
-// DefaultRequestTimeout is the default timeout for request-reply operations.
-const DefaultRequestTimeout = 30 * time.Second

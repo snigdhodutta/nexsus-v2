@@ -24,9 +24,9 @@ type ChatMessage struct {
 }
 
 type UserStatus struct {
-	UserID   string `json:"user_id"`
-	Status   string `json:"status"` // "online", "offline", "away"
-	Timestamp int64 `json:"timestamp"`
+	UserID    string `json:"user_id"`
+	Status    string `json:"status"` // "online", "offline", "away"
+	Timestamp int64  `json:"timestamp"`
 }
 
 type RPCRequest struct {
@@ -47,15 +47,15 @@ func main() {
 	logger.Println("starting NexusWS example server")
 
 	// Create server configuration
-	cfg := nexusws.ServerConfig{
+	cfg := pkg.ServerConfig{
 		Addr:              ":8080",
 		Path:              "/ws",
 		NATSURL:           "nats://localhost:4222",
 		PingInterval:      15 * time.Second,
 		WriteTimeout:      5 * time.Second,
 		ReadTimeout:       30 * time.Second,
-		MaxMessageSize:    1024 * 1024, // 1MB
-		EnableCompression: false,        // Disable for better performance
+		MaxMessageSize:    1024 * 1024,   // 1MB
+		EnableCompression: false,         // Disable for better performance
 		AllowedOrigins:    []string{"*"}, // Configure appropriately for production
 	}
 
@@ -134,8 +134,8 @@ func main() {
 		time.Sleep(100 * time.Millisecond)
 
 		// Send acknowledgment
-		ackMsg := &nexusws.Message{
-			Type:      nexusws.FrameTypeProducerAck,
+		ackMsg := &pkg.Message{
+			Type:      pkg.FrameTypeProducerAck,
 			Subject:   msg.Subject,
 			Payload:   []byte(`{"processed":true}`),
 			Timestamp: time.Now(),
