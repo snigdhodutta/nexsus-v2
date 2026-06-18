@@ -253,7 +253,14 @@ func (c *wsConn) Close(code uint16, reason string) error {
 	}
 
 	c.cancelFn()
-	close(c.closeCh)
+	
+	// Close channel safely (only once)
+	select {
+	case <-c.closeCh:
+		// Already closed
+	default:
+		close(c.closeCh)
+	}
 
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
@@ -265,9 +272,20 @@ func (c *wsConn) Close(code uint16, reason string) error {
 }
 
 func (c *wsConn) closeWithError(code websocket.StatusCode, reason string) {
-	c.closed.Swap(true)
+	if c.closed.Swap(true) {
+		return // Already closed
+	}
+	
 	c.cancelFn()
-	close(c.closeCh)
+	
+	// Close channel safely (only once)
+	select {
+	case <-c.closeCh:
+		// Already closed
+	default:
+		close(c.closeCh)
+	}
+	
 	_ = c.conn.Close(code, reason)
 }
 

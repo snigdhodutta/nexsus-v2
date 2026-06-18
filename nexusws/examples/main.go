@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nexusws/nexusws"
+	"github.com/snigdhodutta/nexsus-v2/nexusws"
 )
 
 // Example message types for our chat application.

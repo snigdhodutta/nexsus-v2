@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/nexusws/nexusws/internal/bridge"
-	"github.com/nexusws/nexusws/internal/codec"
-	"github.com/nexusws/nexusws/internal/conn"
-	"github.com/nexusws/nexusws/internal/router"
+	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/bridge"
+	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/codec"
+	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/conn"
+	"github.com/snigdhodutta/nexsus-v2/nexusws/internal/router"
 )
 
 const (
