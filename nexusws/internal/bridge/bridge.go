@@ -111,7 +111,9 @@ func (b *NATSBridge) PublishWithReply(ctx context.Context, subject string, msg *
 	b.requestMap.Store(correlationID, responseCh)
 
 	// Subscribe to reply subject
-	sub, err := b.conn.Subscribe(replySubject, func(m *nats.Msg) {
+	var sub *nats.Subscription
+	var err error
+	sub, err = b.conn.Subscribe(replySubject, func(m *nats.Msg) {
 		// Decode response
 		respMsg, _, err := b.decoder.Decode(m.Data)
 		if err != nil {

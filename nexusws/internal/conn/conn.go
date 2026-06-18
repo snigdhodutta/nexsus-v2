@@ -16,6 +16,23 @@ import (
 	nexusws "github.com/snigdhodutta/nexsus-v2/nexusws/pkg"
 )
 
+// Type aliases for codec types to avoid import issues
+type FrameEncoder = codec.FrameEncoder
+type FrameDecoder = codec.FrameDecoder
+type RawCodec = codec.RawCodec
+
+func NewFrameEncoder() *FrameEncoder {
+	return codec.NewFrameEncoder()
+}
+
+func NewFrameDecoder() *FrameDecoder {
+	return codec.NewFrameDecoder()
+}
+
+func NewRawCodec() *RawCodec {
+	return codec.NewRawCodec()
+}
+
 const (
 	// DefaultWriteTimeout is the default timeout for write operations
 	DefaultWriteTimeout = 5 * time.Second
@@ -44,8 +61,8 @@ type ConnectionManager struct {
 	conns        sync.Map // map[string]*wsConn
 	connCount    atomic.Int64
 	codec        nexusws.Codec
-	encoder      *codec.FrameEncoder
-	decoder      *codec.FrameDecoder
+	encoder      *FrameEncoder
+	decoder      *FrameDecoder
 	maxMsgSize   int64
 	writeTimeout time.Duration
 	readTimeout  time.Duration
@@ -58,8 +75,8 @@ type ConnectionManager struct {
 func NewConnectionManager(cfg nexusws.ServerConfig) *ConnectionManager {
 	cm := &ConnectionManager{
 		codec:        cfg.Codec,
-		encoder:      codec.NewFrameEncoder(),
-		decoder:      codec.NewFrameDecoder(),
+		encoder:      NewFrameEncoder(),
+		decoder:      NewFrameDecoder(),
 		maxMsgSize:   cfg.MaxMessageSize,
 		writeTimeout: cfg.WriteTimeout,
 		readTimeout:  cfg.ReadTimeout,
@@ -67,7 +84,7 @@ func NewConnectionManager(cfg nexusws.ServerConfig) *ConnectionManager {
 	}
 
 	if cm.codec == nil {
-		cm.codec = codec.NewRawCodec()
+		cm.codec = NewRawCodec()
 	}
 
 	if cm.maxMsgSize == 0 {
@@ -188,8 +205,8 @@ func (cm *ConnectionManager) Broadcast(ctx context.Context, subject string, msg 
 // CloseAll closes all connections gracefully.
 func (cm *ConnectionManager) CloseAll(ctx context.Context, code uint16, reason string) {
 	cm.conns.Range(func(key, value any) bool {
-		wsConn := value.(*wsConn)
-		wsConn.Close(code, reason)
+		connVal := value.(*wsConn)
+		connVal.Close(code, reason)
 		return true
 	})
 }
@@ -231,7 +248,7 @@ func (c *wsConn) Send(ctx context.Context, msg *nexusws.Message) error {
 	buf := pool.GetBuffer()
 	defer pool.PutBuffer(buf)
 
-	frame, err := codec.NewFrameEncoder().Encode(msg)
+	frame, err := NewFrameEncoder().Encode(msg)
 	if err != nil {
 		return err
 	}
@@ -370,7 +387,7 @@ func (c *wsConn) handleReads(cm *ConnectionManager) {
 		}
 
 		// Decode frame
-		msg, _, err := cm.decoder.Decode(*bufPtr)
+		msg, _, err := NewFrameDecoder().Decode(*bufPtr)
 		if err != nil {
 			c.closeWithError(websocket.StatusInvalidFramePayloadData, "decode failed")
 			return

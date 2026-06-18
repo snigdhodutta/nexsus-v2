@@ -12,7 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/snigdhodutta/nexsus-v2/nexusws"
+	nexusws "github.com/snigdhodutta/nexsus-v2/nexusws/pkg"
+	serverPkg "github.com/snigdhodutta/nexsus-v2/nexusws"
 )
 
 // Example message types for our chat application.
@@ -47,7 +48,7 @@ func main() {
 	logger.Println("starting NexusWS example server")
 
 	// Create server configuration
-	cfg := pkg.ServerConfig{
+	cfg := nexusws.ServerConfig{
 		Addr:              ":8080",
 		Path:              "/ws",
 		NATSURL:           "nats://localhost:4222",
@@ -60,7 +61,7 @@ func main() {
 	}
 
 	// Create server
-	server, err := nexusws.NewServer(cfg)
+	server, err := serverPkg.NewServer(cfg)
 	if err != nil {
 		logger.Printf("failed to create server: %v", err)
 		os.Exit(1)
@@ -134,8 +135,8 @@ func main() {
 		time.Sleep(100 * time.Millisecond)
 
 		// Send acknowledgment
-		ackMsg := &pkg.Message{
-			Type:      pkg.FrameTypeProducerAck,
+		ackMsg := &nexusws.Message{
+			Type:      nexusws.FrameTypeProducerAck,
 			Subject:   msg.Subject,
 			Payload:   []byte(`{"processed":true}`),
 			Timestamp: time.Now(),
